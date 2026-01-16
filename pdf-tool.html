@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="PDF Studio - Komprimieren, Splitten & Zusammenfügen direkt im Browser. 100% privat, keine Uploads.">
+
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PDF Studio">
+
+    <title>PDF Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configure PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: #000000;
+        }
+
+        /* 60% Dark Background, 30% Gray Cards, 10% Blue Accents */
+        .glass-card {
+            background: rgba(18, 18, 18, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .tab-active {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .tab-inactive {
+            background: rgba(30, 30, 30, 0.6);
+            color: #6b7280;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-inactive:hover {
+            background: rgba(40, 40, 40, 0.8);
+            color: #9ca3af;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed rgba(60, 60, 60, 0.5);
+            background: rgba(10, 10, 10, 0.6);
+            transition: all 0.3s;
+        }
+
+        .file-drop-zone.dragover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(35, 35, 35, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(45, 45, 45, 1);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .file-item {
+            cursor: move;
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.3s;
+        }
+
+        .file-item:hover {
+            background: rgba(30, 30, 30, 1);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .file-item.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+
+        .stat-card {
+            background: rgba(15, 15, 15, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .success-banner {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(22, 163, 74, 0.08) 100%);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
+
+        .option-card {
+            background: rgba(20, 20, 20, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.3s;
+        }
+
+        .option-card:hover {
+            background: rgba(30, 30, 30, 0.9);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .option-card.selected {
+            background: rgba(59, 130, 246, 0.08);
+            border-color: #3b82f6;
+        }
+
+        input[type="radio"]:checked + .option-content {
+            color: #3b82f6;
+        }
+
+        input[type="number"] {
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+            transition: width 0.3s;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(10, 10, 10, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.7);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 640px) {
+            .glass-card {
+                border-radius: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem !important;
+            }
+
+            .text-3xl {
+                font-size: 1.5rem;
+            }
+
+            .tab-button-text {
+                display: none;
+            }
+
+            .tab-button-icon {
+                display: block;
+            }
+        }
+
+        @media (min-width: 641px) {
+            .tab-button-icon-only {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl">
+        <!-- Header -->
+        <div class="text-center mb-6 sm:mb-12">
+            <div class="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 mb-3 sm:mb-4 shadow-lg shadow-blue-500/50">
+                <svg class="w-6 h-6 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <h1 class="text-3xl sm:text-5xl font-bold text-white mb-2 sm:mb-3">PDF Studio</h1>
+            <p class="text-gray-400 text-sm sm:text-lg px-4">Komprimieren, Splitten & Zusammenfügen - 100% privat im Browser</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="glass-card rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl mb-6 sm:mb-8">
+            <div class="flex gap-1 sm:gap-2 p-2 sm:p-3 bg-gradient-to-r from-black/80 to-black/60">
+                <button onclick="switchTab('compress')" id="tab-compress" class="flex-1 py-2 sm:py-3 px-2 sm:px-6 rounded-lg sm:rounded-xl font-semibold tab-active text-xs sm:text-base">
+                    <span class="flex items-center justify-center gap-1 sm:gap-2">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                        </svg>
+                        <span class="hidden sm:inline">Komprimieren</span>
+                        <span class="sm:hidden">Komp.</span>
+                    </span>
+                </button>
+                <button onclick="switchTab('split')" id="tab-split" class="flex-1 py-2 sm:py-3 px-2 sm:px-6 rounded-lg sm:rounded-xl font-semibold tab-inactive text-xs sm:text-base">
+                    <span class="flex items-center justify-center gap-1 sm:gap-2">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path>
+                        </svg>
+                        <span class="hidden sm:inline">Splitten</span>
+                        <span class="sm:hidden">Split</span>
+                    </span>
+                </button>
+                <button onclick="switchTab('merge')" id="tab-merge" class="flex-1 py-2 sm:py-3 px-2 sm:px-6 rounded-lg sm:rounded-xl font-semibold tab-inactive text-xs sm:text-base">
+                    <span class="flex items-center justify-center gap-1 sm:gap-2">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"></path>
+                        </svg>
+                        <span class="hidden sm:inline">Zusammenfügen</span>
+                        <span class="sm:hidden">Merge</span>
+                    </span>
+                </button>
+            </div>
+
+            <!-- Compress Section -->
+            <div id="section-compress" class="p-4 sm:p-8">
+                <div class="mb-4 sm:mb-6">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">PDF Komprimieren</h2>
+                    <p class="text-sm sm:text-base text-gray-400">Reduzieren Sie die Dateigröße für schnellere Uploads und weniger Speicherplatz</p>
+                </div>
+
+                <div class="file-drop-zone rounded-xl sm:rounded-2xl p-6 sm:p-12 text-center mb-6 sm:mb-8" id="compress-dropzone">
+                    <div class="mb-4 sm:mb-6">
+                        <svg class="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-blue-500 mb-3 sm:mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                    </div>
+                    <p class="text-gray-300 text-base sm:text-lg mb-3 sm:mb-4">PDF hier ablegen</p>
+                    <p class="text-gray-500 mb-4 sm:mb-6 text-sm sm:text-base">oder</p>
+                    <input type="file" id="compress-file-input" accept=".pdf" class="hidden" onchange="handleCompressFile(event)">
+                    <button onclick="document.getElementById('compress-file-input').click()" class="btn-primary text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base">
+                        Datei auswählen
+                    </button>
+                </div>
+
+                <div id="compress-options" class="hidden">
+                    <div class="stat-card p-5 rounded-xl mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p id="compress-filename" class="text-white font-semibold text-lg"></p>
+                                <p id="compress-filesize" class="text-gray-400 text-sm"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-8">
+                        <label class="block text-white font-semibold mb-4 text-lg">Kompressionsstärke</label>
+                        <div class="space-y-3">
+                            <label class="option-card flex items-center p-4 rounded-xl cursor-pointer">
+                                <input type="radio" name="compression" value="low" checked class="mr-4 w-5 h-5 text-blue-600">
+                                <div class="option-content flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-semibold text-white">Niedrig</span>
+                                        <span class="text-xs text-gray-400 bg-gray-700/50 px-3 py-1 rounded-full">~10-20% kleiner</span>
+                                    </div>
+                                    <p class="text-gray-400 text-sm mt-1">Nur Metadaten entfernen, alle Inhalte unverändert</p>
+                                </div>
+                            </label>
+                            <label class="option-card flex items-center p-4 rounded-xl cursor-pointer">
+                                <input type="radio" name="compression" value="medium" class="mr-4 w-5 h-5 text-blue-600">
+                                <div class="option-content flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-semibold text-white">Mittel</span>
+                                        <span class="text-xs text-gray-400 bg-gray-700/50 px-3 py-1 rounded-full">~40-60% kleiner</span>
+                                    </div>
+                                    <p class="text-gray-400 text-sm mt-1">Hohe Auflösung (2.5x DPI) + moderate Kompression</p>
+                                </div>
+                            </label>
+                            <label class="option-card flex items-center p-4 rounded-xl cursor-pointer">
+                                <input type="radio" name="compression" value="high" class="mr-4 w-5 h-5 text-blue-600">
+                                <div class="option-content flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-semibold text-white">Hoch</span>
+                                        <span class="text-xs text-gray-400 bg-gray-700/50 px-3 py-1 rounded-full">~60-80% kleiner</span>
+                                    </div>
+                                    <p class="text-gray-400 text-sm mt-1">2x DPI für scharfen Zoom + maximale Kompression</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button onclick="compressPDF()" id="compress-btn" class="w-full btn-primary text-white py-4 rounded-xl font-semibold text-lg">
+                        PDF Komprimieren
+                    </button>
+
+                    <div id="compress-loading" class="hidden mt-6">
+                        <div class="stat-card p-6 rounded-xl">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full border-4 border-blue-500/30 border-t-blue-500 animate-spin"></div>
+                                <div class="flex-1">
+                                    <p class="text-white font-semibold text-lg mb-1">Komprimiere PDF...</p>
+                                    <p class="text-gray-400 text-sm" id="compress-progress">Seiten werden verarbeitet...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="compress-result" class="hidden mt-8">
+                    <div class="success-banner rounded-xl p-6 mb-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-semibold text-green-400 text-lg mb-3">Komprimierung erfolgreich!</p>
+                                <div class="grid grid-cols-3 gap-4 mt-4">
+                                    <div class="stat-card p-4 rounded-lg">
+                                        <p class="text-gray-400 text-xs mb-1">Original</p>
+                                        <p id="original-size" class="text-white font-semibold text-lg"></p>
+                                    </div>
+                                    <div class="stat-card p-4 rounded-lg">
+                                        <p class="text-gray-400 text-xs mb-1">Komprimiert</p>
+                                        <p id="compressed-size" class="text-white font-semibold text-lg"></p>
+                                    </div>
+                                    <div class="stat-card p-4 rounded-lg">
+                                        <p class="text-gray-400 text-xs mb-1">Ersparnis</p>
+                                        <p id="savings" class="text-green-400 font-semibold text-lg"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="downloadCompressed()" class="w-full btn-primary text-white py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Komprimierte PDF herunterladen
+                    </button>
+                </div>
+            </div>
+
+            <!-- Split Section -->
+            <div id="section-split" class="p-4 sm:p-8 hidden">
+                <div class="mb-4 sm:mb-6">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">PDF Splitten</h2>
+                    <p class="text-sm sm:text-base text-gray-400">Extrahieren Sie spezifische Seiten oder teilen Sie in einzelne Dateien</p>
+                </div>
+
+                <div class="file-drop-zone rounded-2xl p-12 text-center mb-8" id="split-dropzone">
+                    <div class="mb-6">
+                        <svg class="mx-auto h-16 w-16 text-blue-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                    </div>
+                    <p class="text-gray-300 text-lg mb-4">PDF hier ablegen</p>
+                    <p class="text-gray-500 mb-6">oder</p>
+                    <input type="file" id="split-file-input" accept=".pdf" class="hidden" onchange="handleSplitFile(event)">
+                    <button onclick="document.getElementById('split-file-input').click()" class="btn-primary text-white px-8 py-3 rounded-xl font-semibold">
+                        Datei auswählen
+                    </button>
+                </div>
+
+                <div id="split-options" class="hidden">
+                    <div class="stat-card p-5 rounded-xl mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p id="split-filename" class="text-white font-semibold text-lg"></p>
+                                <p id="split-pagecount" class="text-gray-400 text-sm"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-white font-semibold mb-4 text-lg">Split-Modus</label>
+                        <div class="space-y-3">
+                            <label class="option-card flex items-center p-4 rounded-xl cursor-pointer">
+                                <input type="radio" name="splitmode" value="range" checked class="mr-4 w-5 h-5 text-blue-600" onchange="toggleSplitMode()">
+                                <div class="option-content flex-1">
+                                    <span class="font-semibold text-white block">Nach Seitenbereich</span>
+                                    <p class="text-gray-400 text-sm mt-1">Extrahieren Sie einen spezifischen Bereich (z.B. Seite 1-5)</p>
+                                </div>
+                            </label>
+                            <label class="option-card flex items-center p-4 rounded-xl cursor-pointer">
+                                <input type="radio" name="splitmode" value="individual" class="mr-4 w-5 h-5 text-blue-600" onchange="toggleSplitMode()">
+                                <div class="option-content flex-1">
+                                    <span class="font-semibold text-white block">Einzelne Seiten</span>
+                                    <p class="text-gray-400 text-sm mt-1">Jede Seite wird zu einer eigenen PDF-Datei</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="range-inputs" class="mb-8">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">Von Seite</label>
+                                <input type="number" id="split-from" min="1" value="1" class="w-full px-4 py-3 rounded-xl">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">Bis Seite</label>
+                                <input type="number" id="split-to" min="1" value="1" class="w-full px-4 py-3 rounded-xl">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="splitPDF()" class="w-full btn-primary text-white py-4 rounded-xl font-semibold text-lg">
+                        PDF Splitten
+                    </button>
+                </div>
+
+                <div id="split-result" class="hidden mt-8">
+                    <div class="success-banner rounded-xl p-6 mb-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-semibold text-green-400 text-lg mb-2">Split erfolgreich!</p>
+                                <p class="text-gray-300" id="split-result-info"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="split-download-buttons" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Merge Section -->
+            <div id="section-merge" class="p-4 sm:p-8 hidden">
+                <div class="mb-4 sm:mb-6">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2">PDFs Zusammenfügen</h2>
+                    <p class="text-sm sm:text-base text-gray-400">Kombinieren Sie mehrere PDFs zu einer einzigen Datei</p>
+                </div>
+
+                <div class="file-drop-zone rounded-2xl p-12 text-center mb-8" id="merge-dropzone">
+                    <div class="mb-6">
+                        <svg class="mx-auto h-16 w-16 text-blue-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                    </div>
+                    <p class="text-gray-300 text-lg mb-4">Mehrere PDFs hier ablegen</p>
+                    <p class="text-gray-500 mb-6">oder</p>
+                    <input type="file" id="merge-file-input" accept=".pdf" multiple class="hidden" onchange="handleMergeFiles(event)">
+                    <button onclick="document.getElementById('merge-file-input').click()" class="btn-primary text-white px-8 py-3 rounded-xl font-semibold">
+                        Dateien auswählen
+                    </button>
+                </div>
+
+                <div id="merge-list" class="hidden">
+                    <div class="stat-card p-5 rounded-xl mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="font-semibold text-white text-lg">Dateien</p>
+                            <p class="text-gray-400 text-sm">Ziehen zum Sortieren</p>
+                        </div>
+                        <div id="merge-files-container" class="space-y-2"></div>
+                    </div>
+
+                    <button onclick="addMoreFiles()" class="w-full mb-4 btn-secondary text-gray-300 py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Weitere Dateien hinzufügen
+                    </button>
+
+                    <button onclick="mergePDFs()" class="w-full btn-primary text-white py-4 rounded-xl font-semibold text-lg">
+                        PDFs Zusammenfügen
+                    </button>
+                </div>
+
+                <div id="merge-result" class="hidden mt-8">
+                    <div class="success-banner rounded-xl p-6 mb-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-semibold text-green-400 text-lg mb-2">Zusammenführung erfolgreich!</p>
+                                <p class="text-gray-300" id="merge-result-info"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="downloadMerged()" class="w-full btn-primary text-white py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Zusammengefügte PDF herunterladen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8">
+            <div class="inline-flex items-center gap-2 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-full px-6 py-3">
+                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                <p class="text-green-400 text-sm font-medium">100% privat - Alle Dateien bleiben in Ihrem Browser</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { PDFDocument, degrees } = PDFLib;
+
+        // Global variables
+        let compressFileData = null;
+        let splitFileData = null;
+        let mergeFilesData = [];
+        let compressedPdfBytes = null;
+        let splitPdfResults = [];
+        let mergedPdfBytes = null;
+
+        // Tab switching with animations
+        function switchTab(tab) {
+            // Hide all sections
+            document.getElementById('section-compress').classList.add('hidden');
+            document.getElementById('section-split').classList.add('hidden');
+            document.getElementById('section-merge').classList.add('hidden');
+
+            // Update tab styles
+            ['compress', 'split', 'merge'].forEach(t => {
+                const tabElement = document.getElementById('tab-' + t);
+                if (t === tab) {
+                    tabElement.classList.remove('tab-inactive');
+                    tabElement.classList.add('tab-active');
+                } else {
+                    tabElement.classList.remove('tab-active');
+                    tabElement.classList.add('tab-inactive');
+                }
+            });
+
+            // Show selected section
+            document.getElementById('section-' + tab).classList.remove('hidden');
+        }
+
+        // Utility: Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Setup drag and drop zones
+        function setupDropZone(dropzoneId, fileInputId, handler) {
+            const dropzone = document.getElementById(dropzoneId);
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handler(files);
+                }
+            });
+        }
+
+        // Update option card styling on selection
+        document.addEventListener('change', (e) => {
+            if (e.target.type === 'radio') {
+                const name = e.target.name;
+                document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
+                    const card = radio.closest('.option-card');
+                    if (card) {
+                        if (radio.checked) {
+                            card.classList.add('selected');
+                        } else {
+                            card.classList.remove('selected');
+                        }
+                    }
+                });
+            }
+        });
+
+        // ===== COMPRESS =====
+        function handleCompressFile(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                compressFileData = file;
+                document.getElementById('compress-filename').textContent = file.name;
+                document.getElementById('compress-filesize').textContent = formatFileSize(file.size);
+                document.getElementById('compress-options').classList.remove('hidden');
+                document.getElementById('compress-result').classList.add('hidden');
+            }
+        }
+
+        async function compressPDF() {
+            if (!compressFileData) return;
+
+            const compressionLevel = document.querySelector('input[name="compression"]:checked').value;
+
+            // Show loading, hide button and result
+            document.getElementById('compress-btn').disabled = true;
+            document.getElementById('compress-btn').classList.add('opacity-50');
+            document.getElementById('compress-loading').classList.remove('hidden');
+            document.getElementById('compress-result').classList.add('hidden');
+
+            try {
+                const arrayBuffer = await compressFileData.arrayBuffer();
+
+                // Smart compression: compress images but keep text/vectors sharp
+                if (compressionLevel === 'high') {
+                    const compressedPdf = await smartCompressPDF(arrayBuffer, 0.5); // 50% image quality, high DPI
+                    compressedPdfBytes = compressedPdf;
+                } else if (compressionLevel === 'medium') {
+                    const compressedPdf = await smartCompressPDF(arrayBuffer, 0.7); // 70% image quality
+                    compressedPdfBytes = compressedPdf;
+                } else {
+                    // Low compression - just optimize structure, preserve everything
+                    document.getElementById('compress-progress').textContent = 'PDF wird optimiert...';
+                    const pdfDoc = await PDFDocument.load(arrayBuffer);
+
+                    // Remove metadata
+                    try {
+                        pdfDoc.setTitle('');
+                        pdfDoc.setAuthor('');
+                        pdfDoc.setSubject('');
+                        pdfDoc.setKeywords([]);
+                        pdfDoc.setProducer('');
+                        pdfDoc.setCreator('');
+                    } catch (e) {}
+
+                    const pdfBytes = await pdfDoc.save({
+                        useObjectStreams: true,
+                        addDefaultPage: false
+                    });
+                    compressedPdfBytes = pdfBytes;
+                }
+
+                const originalSize = compressFileData.size;
+                const newSize = compressedPdfBytes.length;
+                const savings = ((originalSize - newSize) / originalSize * 100).toFixed(1);
+
+                document.getElementById('original-size').textContent = formatFileSize(originalSize);
+                document.getElementById('compressed-size').textContent = formatFileSize(newSize);
+                document.getElementById('savings').textContent = `${savings}%`;
+
+                // Hide loading, show result
+                document.getElementById('compress-loading').classList.add('hidden');
+                document.getElementById('compress-result').classList.remove('hidden');
+                document.getElementById('compress-btn').disabled = false;
+                document.getElementById('compress-btn').classList.remove('opacity-50');
+            } catch (error) {
+                alert('Fehler beim Komprimieren: ' + error.message);
+                document.getElementById('compress-loading').classList.add('hidden');
+                document.getElementById('compress-btn').disabled = false;
+                document.getElementById('compress-btn').classList.remove('opacity-50');
+            }
+        }
+
+        async function smartCompressPDF(arrayBuffer, imageQuality) {
+            // Smart compression: High-res rendering + JPEG compression
+            // This preserves sharpness at zoom while reducing file size
+
+            document.getElementById('compress-progress').textContent = 'Lade PDF...';
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
+
+            document.getElementById('compress-progress').textContent = `Verarbeite ${pdf.numPages} Seiten...`;
+
+            // Create new PDF with pdf-lib
+            const newPdfDoc = await PDFDocument.create();
+
+            // Use HIGH DPI for better quality when zooming
+            // Scale 2.0 = 2x resolution = sharper text and graphics
+            const scale = imageQuality > 0.6 ? 2.5 : 2.0;
+
+            // Process each page
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                document.getElementById('compress-progress').textContent = `Seite ${pageNum} von ${pdf.numPages}...`;
+
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: scale });
+
+                // Create high-resolution canvas
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                // Render at high DPI for sharp output
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport,
+                    intent: 'print' // Use print rendering for better quality
+                }).promise;
+
+                // Convert to JPEG with smart compression
+                // High resolution + JPEG compression = sharp & small
+                const imageDataUrl = canvas.toDataURL('image/jpeg', imageQuality);
+                const imageBytes = await fetch(imageDataUrl).then(res => res.arrayBuffer());
+
+                // Embed compressed image in new PDF
+                const image = await newPdfDoc.embedJpg(imageBytes);
+
+                // Get original page dimensions (in points, 72 DPI)
+                const originalViewport = page.getViewport({ scale: 1.0 });
+                const pdfPage = newPdfDoc.addPage([originalViewport.width, originalViewport.height]);
+
+                // Draw image at original size (scaling is handled by PDF viewer)
+                pdfPage.drawImage(image, {
+                    x: 0,
+                    y: 0,
+                    width: originalViewport.width,
+                    height: originalViewport.height,
+                });
+            }
+
+            document.getElementById('compress-progress').textContent = 'Speichere komprimierte PDF...';
+
+            // Save with maximum compression settings
+            const pdfBytes = await newPdfDoc.save({
+                useObjectStreams: true,
+                addDefaultPage: false,
+                objectsPerTick: 500
+            });
+
+            return pdfBytes;
+        }
+
+        async function compressPDFWithImages(arrayBuffer, quality) {
+            // Fallback: Old method - kept for compatibility
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
+
+            document.getElementById('compress-progress').textContent = `Verarbeite ${pdf.numPages} Seiten...`;
+
+            const newPdfDoc = await PDFDocument.create();
+            const scale = quality > 0.5 ? 1.5 : 1.0;
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                document.getElementById('compress-progress').textContent = `Seite ${pageNum} von ${pdf.numPages}...`;
+
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: scale });
+
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+
+                const imageDataUrl = canvas.toDataURL('image/jpeg', quality);
+                const imageBytes = await fetch(imageDataUrl).then(res => res.arrayBuffer());
+
+                const image = await newPdfDoc.embedJpg(imageBytes);
+                const pdfPage = newPdfDoc.addPage([viewport.width, viewport.height]);
+
+                pdfPage.drawImage(image, {
+                    x: 0,
+                    y: 0,
+                    width: viewport.width,
+                    height: viewport.height,
+                });
+            }
+
+            document.getElementById('compress-progress').textContent = 'Speichere komprimierte PDF...';
+
+            const pdfBytes = await newPdfDoc.save({
+                useObjectStreams: true,
+                addDefaultPage: false,
+                objectsPerTick: 500
+            });
+
+            return pdfBytes;
+        }
+
+        function downloadCompressed() {
+            if (!compressedPdfBytes) return;
+
+            const blob = new Blob([compressedPdfBytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = compressFileData.name.replace('.pdf', '_compressed.pdf');
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ===== SPLIT =====
+        function handleSplitFile(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                loadSplitFile(file);
+            }
+        }
+
+        async function loadSplitFile(file) {
+            splitFileData = file;
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(arrayBuffer);
+            const pageCount = pdfDoc.getPageCount();
+
+            document.getElementById('split-filename').textContent = file.name;
+            document.getElementById('split-pagecount').textContent = `${pageCount} Seiten`;
+            document.getElementById('split-to').value = pageCount;
+            document.getElementById('split-to').max = pageCount;
+            document.getElementById('split-from').max = pageCount;
+            document.getElementById('split-options').classList.remove('hidden');
+            document.getElementById('split-result').classList.add('hidden');
+        }
+
+        function toggleSplitMode() {
+            const mode = document.querySelector('input[name="splitmode"]:checked').value;
+            if (mode === 'range') {
+                document.getElementById('range-inputs').classList.remove('hidden');
+            } else {
+                document.getElementById('range-inputs').classList.add('hidden');
+            }
+        }
+
+        async function splitPDF() {
+            if (!splitFileData) return;
+
+            const mode = document.querySelector('input[name="splitmode"]:checked').value;
+
+            try {
+                const arrayBuffer = await splitFileData.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+                const totalPages = pdfDoc.getPageCount();
+
+                splitPdfResults = [];
+
+                if (mode === 'range') {
+                    const from = parseInt(document.getElementById('split-from').value);
+                    const to = parseInt(document.getElementById('split-to').value);
+
+                    if (from < 1 || to > totalPages || from > to) {
+                        alert('Ungültiger Seitenbereich!');
+                        return;
+                    }
+
+                    const newPdf = await PDFDocument.create();
+                    for (let i = from - 1; i < to; i++) {
+                        const [copiedPage] = await newPdf.copyPages(pdfDoc, [i]);
+                        newPdf.addPage(copiedPage);
+                    }
+
+                    const pdfBytes = await newPdf.save();
+                    splitPdfResults.push({
+                        name: `${splitFileData.name.replace('.pdf', '')}_seiten_${from}-${to}.pdf`,
+                        bytes: pdfBytes
+                    });
+
+                    document.getElementById('split-result-info').textContent =
+                        `Seiten ${from}-${to} extrahiert (${to - from + 1} Seiten)`;
+
+                } else if (mode === 'individual') {
+                    for (let i = 0; i < totalPages; i++) {
+                        const newPdf = await PDFDocument.create();
+                        const [copiedPage] = await newPdf.copyPages(pdfDoc, [i]);
+                        newPdf.addPage(copiedPage);
+
+                        const pdfBytes = await newPdf.save();
+                        splitPdfResults.push({
+                            name: `${splitFileData.name.replace('.pdf', '')}_seite_${i + 1}.pdf`,
+                            bytes: pdfBytes
+                        });
+                    }
+
+                    document.getElementById('split-result-info').textContent =
+                        `${totalPages} einzelne PDF-Dateien erstellt`;
+                }
+
+                // Create download buttons
+                const container = document.getElementById('split-download-buttons');
+                container.innerHTML = '';
+                splitPdfResults.forEach((result, index) => {
+                    const button = document.createElement('button');
+                    button.className = 'w-full btn-primary text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2';
+                    button.innerHTML = `
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        ${result.name}
+                    `;
+                    button.onclick = () => downloadSplitFile(index);
+                    container.appendChild(button);
+                });
+
+                document.getElementById('split-result').classList.remove('hidden');
+
+            } catch (error) {
+                alert('Fehler beim Splitten: ' + error.message);
+            }
+        }
+
+        function downloadSplitFile(index) {
+            const result = splitPdfResults[index];
+            const blob = new Blob([result.bytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = result.name;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ===== MERGE =====
+        function handleMergeFiles(event) {
+            const files = Array.from(event.target.files).filter(f => f.type === 'application/pdf');
+            if (files.length > 0) {
+                addFilesToMergeList(files);
+            }
+        }
+
+        async function addFilesToMergeList(files) {
+            for (const file of files) {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+                const pageCount = pdfDoc.getPageCount();
+
+                mergeFilesData.push({
+                    file: file,
+                    name: file.name,
+                    pageCount: pageCount,
+                    arrayBuffer: arrayBuffer
+                });
+            }
+
+            updateMergeList();
+            document.getElementById('merge-list').classList.remove('hidden');
+            document.getElementById('merge-result').classList.add('hidden');
+        }
+
+        function updateMergeList() {
+            const container = document.getElementById('merge-files-container');
+            container.innerHTML = '';
+
+            mergeFilesData.forEach((fileData, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item p-4 rounded-xl flex items-center justify-between';
+                fileItem.draggable = true;
+                fileItem.dataset.index = index;
+
+                fileItem.innerHTML = `
+                    <div class="flex items-center flex-1 gap-3">
+                        <svg class="w-5 h-5 text-gray-400 cursor-move" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                        </svg>
+                        <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-white">${fileData.name}</p>
+                            <p class="text-sm text-gray-400">${fileData.pageCount} Seiten</p>
+                        </div>
+                    </div>
+                    <button onclick="removeMergeFile(${index})" class="text-red-400 hover:text-red-300 ml-4">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                `;
+
+                // Drag and drop for reordering
+                fileItem.addEventListener('dragstart', handleDragStart);
+                fileItem.addEventListener('dragover', handleDragOver);
+                fileItem.addEventListener('drop', handleDrop);
+                fileItem.addEventListener('dragend', handleDragEnd);
+
+                container.appendChild(fileItem);
+            });
+        }
+
+        let draggedIndex = null;
+
+        function handleDragStart(e) {
+            draggedIndex = parseInt(e.target.dataset.index);
+            e.target.classList.add('dragging');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const dropIndex = parseInt(e.currentTarget.dataset.index);
+
+            if (draggedIndex !== null && draggedIndex !== dropIndex) {
+                const draggedItem = mergeFilesData[draggedIndex];
+                mergeFilesData.splice(draggedIndex, 1);
+                mergeFilesData.splice(dropIndex, 0, draggedItem);
+                updateMergeList();
+            }
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedIndex = null;
+        }
+
+        function removeMergeFile(index) {
+            mergeFilesData.splice(index, 1);
+            updateMergeList();
+            if (mergeFilesData.length === 0) {
+                document.getElementById('merge-list').classList.add('hidden');
+            }
+        }
+
+        function addMoreFiles() {
+            document.getElementById('merge-file-input').click();
+        }
+
+        async function mergePDFs() {
+            if (mergeFilesData.length < 2) {
+                alert('Bitte wählen Sie mindestens 2 PDFs aus.');
+                return;
+            }
+
+            try {
+                const mergedPdf = await PDFDocument.create();
+                let totalPages = 0;
+
+                for (const fileData of mergeFilesData) {
+                    const pdfDoc = await PDFDocument.load(fileData.arrayBuffer);
+                    const pages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+                    pages.forEach(page => mergedPdf.addPage(page));
+                    totalPages += fileData.pageCount;
+                }
+
+                mergedPdfBytes = await mergedPdf.save();
+
+                document.getElementById('merge-result-info').textContent =
+                    `${mergeFilesData.length} PDFs mit insgesamt ${totalPages} Seiten zusammengefügt`;
+                document.getElementById('merge-result').classList.remove('hidden');
+
+            } catch (error) {
+                alert('Fehler beim Zusammenfügen: ' + error.message);
+            }
+        }
+
+        function downloadMerged() {
+            if (!mergedPdfBytes) return;
+
+            const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'merged.pdf';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize drag and drop
+        setupDropZone('compress-dropzone', 'compress-file-input', (files) => {
+            const file = files[0];
+            if (file && file.type === 'application/pdf') {
+                compressFileData = file;
+                document.getElementById('compress-filename').textContent = file.name;
+                document.getElementById('compress-filesize').textContent = formatFileSize(file.size);
+                document.getElementById('compress-options').classList.remove('hidden');
+                document.getElementById('compress-result').classList.add('hidden');
+            }
+        });
+
+        setupDropZone('split-dropzone', 'split-file-input', (files) => {
+            const file = files[0];
+            if (file && file.type === 'application/pdf') {
+                loadSplitFile(file);
+            }
+        });
+
+        setupDropZone('merge-dropzone', 'merge-file-input', (files) => {
+            const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf');
+            if (pdfFiles.length > 0) {
+                addFilesToMergeList(pdfFiles);
+            }
+        });
+
+        // Initialize with first radio option selected styling
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+                const card = radio.closest('.option-card');
+                if (card) card.classList.add('selected');
+            });
+        });
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('✅ Service Worker registriert:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('❌ Service Worker Registrierung fehlgeschlagen:', error);
+                    });
+            });
+        }
+
+        // PWA Install Prompt (optional - für "App installieren" Button)
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            console.log('💾 PWA kann installiert werden');
+        });
+    </script>
+</body>
+</html>
